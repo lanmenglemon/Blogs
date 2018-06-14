@@ -65,7 +65,6 @@ jQuery("#getDataBtn").click(function() {
         posts = JSON.parse(data[0]);
         comments = JSON.parse(data[1]);
         users = JSON.parse(data[2]);
-        generateLikesArray(posts);
         localStorage.a_posts = JSON.stringify(posts);
         localStorage.a_comments = JSON.stringify(comments);
         localStorage.a_users = JSON.stringify(users);
@@ -78,16 +77,6 @@ jQuery("#getDataBtn").click(function() {
     });
 });
 
-function generateLikesArray(posts) {
-    var leng = posts.length;
-    for (var i = 0; i < leng; i++) {
-        var l = {
-            "postId": posts[i].id,
-            "ifLiked": false
-        };
-        likes.push(l);
-    }
-}
 
 function findElements(arr, propName, propValue) {
     var results = [];
@@ -126,7 +115,8 @@ function displayPosts(num) {
                                 <p>${posts[i].body}</p><br />
                                 <div>
                     `;
-        var ifLiked = findElements(likes, "postId", posts[i].id)[0].ifLiked;
+        var likeArray = findElements(likes, "postId", posts[i].id);
+        var ifLiked = likeArray.length === 0? false: true;
         post += ifLiked? `<input type="button" value="Liked" style="color: pink" id="btn_like_${i}" />`
                         :`<input type="button" value="Like" id="btn_like_${i}" />`;
                                     
@@ -299,7 +289,8 @@ function appendMorePosts(id, num) {
                                 <p>${posts[i].body}</p><br />
                                 <div>
                     `;
-        var ifLiked = findElements(likes, "postId", posts[i].id)[0].ifLiked;
+        var likeArray = findElements(likes, "postId", posts[i].id);
+        var ifLiked = likeArray.length === 0? false: true;
         post += ifLiked? `<input type="button" value="Liked" style="color: pink" id="btn_like_${i}" />`
                         :`<input type="button" value="Like" id="btn_like_${i}" />`;
                                     
@@ -334,17 +325,21 @@ var scrollFn = function() {
     var id = jQuery(this).attr('id').slice(9),
         btn_like_id = "btn_like_" + id;
     likes = JSON.parse(localStorage.a_likes);
+    var ifLiked = false;
     for (var i = 0; i < likes.length; i++) {
         if (likes[i].postId === posts[id].id) {
-            if (likes[i].ifLiked) {
-                likes[i].ifLiked = false;
-                jQuery(this)[0].outerHTML = `<input type="button" value="Like" id="${btn_like_id}" />`;
-            }else {
-                likes[i].ifLiked = true;
-                jQuery(this)[0].outerHTML = `<input type="button" value="Liked" style="color: pink" id="${btn_like_id}" />`;
-            }
+            ifLiked = true;
+            likes.splice(i, 1);
+            break;
         }
     }
+    if (!ifLiked) {
+        var l = {
+            "postId": posts[i].id
+        };
+        likes.push(l);
+    };
+    jQuery(this)[0].outerHTML = ifLiked? `<input type="button" value="Like" id="${btn_like_id}" />`: `<input type="button" value="Liked" style="color: pink" id="${btn_like_id}" />`;
     localStorage.a_likes = JSON.stringify(likes);
     
  });
@@ -353,6 +348,10 @@ var scrollFn = function() {
     var id = jQuery(this).attr('id').slice(9);
         tr_id = jQuery(this).attr('id').replace('btn_edit_', 'tr_'),
         tr_id_edit = tr_id + "_edit";
+    posts = JSON.parse(localStorage.a_posts);
+    var postTitle = posts[id].title,
+        postBody = posts[id].body;
+    console.log(postTitle + " " + postBody);
     if(jQuery('#' + tr_id_edit).length != 0 ) {
         jQuery('#' + tr_id_edit).remove();
     }
@@ -360,8 +359,8 @@ var scrollFn = function() {
         jQuery('#' + tr_id).after(`
             <tr id="${tr_id_edit}">
                 <td>
-                    <input type="text" placeholder="Title" id="title_${id}" />
-                    <input type="text" placeholder="Body" id="body_${id}" />
+                    <input id="title_${id}" value="${postTitle}" /><br/>
+                    <textarea rows="3" style="width: 500px" id="body_${id}">${postBody}</textarea>
                     <div>
                         <input type="button" value="Save" id="btn_save_${id}" />
                     </div>
@@ -419,14 +418,8 @@ jQuery(document).on('click', '#btn', function() {
                 'title': document.getElementById('title').value,
                 'body': document.getElementById('body').value
             };
-            var newLike = {
-                "postId": lastPostId + 1,
-                "ifLiked": false
-            };
             posts.push(newPost);
-            likes.push(newLike);
             localStorage.a_posts = JSON.stringify(posts);
-            localStorage.a_likes = JSON.stringify(likes);
             displayPosts(20);
             if(document.getElementById('userId_warning')) {
                 document.getElementById('userId_warning').remove();
